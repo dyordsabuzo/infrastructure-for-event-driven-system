@@ -1,0 +1,6 @@
+pytest
+requests
+Pillow
+celery
+boto3
+moto

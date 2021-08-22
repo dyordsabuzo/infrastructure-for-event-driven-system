@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pytest
+requests
+wonderwords
+aiofiles
+Pillow
+celery
+jinja2
+boto3
+moto
