@@ -6,6 +6,9 @@ import requests
 import os
 import logging
 import boto3
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 

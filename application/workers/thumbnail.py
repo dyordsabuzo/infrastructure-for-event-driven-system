@@ -1,5 +1,7 @@
-from .config import app
+from .config import get_celery_app
 from entities.thumbnail import S3_Thumbnail, Thumbnail
+
+app = get_celery_app()
 
 
 @app.task(bind=True, name='create_thumbnail')

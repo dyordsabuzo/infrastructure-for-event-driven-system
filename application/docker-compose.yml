@@ -6,55 +6,46 @@ services:
       context: .
       dockerfile: backend.Dockerfile
     command: uvicorn app.main:app --reload --workers 1 --host 0.0.0.0 --port 8000
-    environment:
-      - BROKER=amqp://guest:guest@rabbitmq:5672//
-      - BACKEND=rpc://
-      - THUMBNAIL_BASE_URL=http://localstack:4566/samplebucket/thumbnail
-      - S3_BUCKET_NAME=samplebucket
     ports:
       - 8000:8000
     volumes:
       - /tmp/static:/tmp/static
+      - $PWD/.env:/usr/src/.env
+
   worker:
     build:
       context: .
       dockerfile: worker.Dockerfile
     command: celery -A workers.thumbnail worker --loglevel=info
-    environment:
-      - BROKER=amqp://guest:guest@rabbitmq:5672//
-      - BACKEND=rpc://
-      - AWS_ACCESS_KEY_ID=temp
-      - AWS_SECRET_ACCESS_KEY=temp
-      - AWS_DEFAULT_REGION=ap-southeast-2
-      - AWS_ENDPOINT=http://localstack:4566
     volumes:
       - /tmp/static:/tmp/static
-    depends_on:
-      - rabbitmq
+      - $PWD/.env:/usr/src/.env
+    # depends_on:
+    #   - rabbitmq
 
-  rabbitmq:
-    image: rabbitmq:management-alpine
-    ports:
-      - 5672:5672
-      - 15672:15672
+  # rabbitmq:
+  #   image: rabbitmq:management-alpine
+  #   ports:
+  #     - 5672:5672
+  #     - 15672:15672
 
-  flower:
-    image: mher/flower
-    environment:
-      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
-      - FLOWER_PORT=8888
-    ports:
-      - 8888:8888
-    depends_on:
-      - rabbitmq
-      - worker
+  # flower:
+  #   image: mher/flower
+  #   environment:
+  #     - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+  #     - FLOWER_PORT=8888
+  #   ports:
+  #     - 8888:8888
+  #   depends_on:
+  #     - rabbitmq
+  #     - worker
 
-  localstack:
-    image: localstack/localstack
-    container_name: localstack
-    ports:
-      - 4566:4566
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - SERVICES=s3
+  # localstack:
+  #   image: localstack/localstack
+  #   container_name: localstack
+  #   ports:
+  #     - 4566:4566
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #   environment:
+  #     - SERVICES=s3

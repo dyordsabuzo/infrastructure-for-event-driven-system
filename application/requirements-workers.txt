@@ -1,6 +1,8 @@
 pytest
 requests
 Pillow
-celery
+celery==v5.1.2
 boto3
 moto
+pycurl
+python-dotenv

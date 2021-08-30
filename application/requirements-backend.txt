@@ -5,7 +5,8 @@ requests
 wonderwords
 aiofiles
 Pillow
-celery
+celery==v5.1.2
 jinja2
 boto3
 moto
+python-dotenv
