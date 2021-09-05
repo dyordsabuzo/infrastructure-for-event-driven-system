@@ -1,12 +1,13 @@
-FROM python:3.9.4-alpine
+FROM python:3.9.4-alpine AS base
 
 WORKDIR /usr/src
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 ENV CRYPTOGRAPHY_DONT_BUILD_RUST 1
+ENV APPLICATION_PORT 8000
 
-COPY ./requirements-backend.txt /usr/src/requirements.txt
+COPY ./backend.requirements.txt /usr/src/requirements.txt
 
 RUN set -eux \
     && apk add --no-cache --virtual .build-deps build-base \
@@ -23,4 +24,18 @@ COPY ./app/ /usr/src/app/
 COPY ./templates/ /usr/src/templates/
 COPY ./workers/ /usr/src/workers/
 COPY ./entities/ /usr/src/entities/
-COPY ./tests/ /usr/src/tests/
+
+FROM base AS test
+
+COPY ./tests/backend/ /usr/src/tests/
+RUN pytest
+RUN touch /usr/src/test.complete
+
+FROM base AS final
+COPY --from=test /usr/src/test.complete .
+COPY ./backend.entrypoint.sh /usr/src/entrypoint.sh
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
+ENTRYPOINT [ "sh", "/usr/src/entrypoint.sh" ]
