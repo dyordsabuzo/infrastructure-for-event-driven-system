@@ -1,4 +1,4 @@
-FROM python:3.9.4-alpine
+FROM python:3.9.4-alpine AS base
 
 WORKDIR /usr/src
 
@@ -7,7 +7,7 @@ ENV PYTHONBUFFERED 1
 ENV CRYPTOGRAPHY_DONT_BUILD_RUST 1
 ENV PYCURL_VERSION=7_44_1
 
-COPY ./requirements-workers.txt requirements.txt
+COPY ./workers.requirements.txt requirements.txt
 RUN set -eux \
     && apk add --no-cache --virtual .build-deps build-base \
     libressl-dev libffi-dev gcc musl-dev python3-dev \
@@ -25,8 +25,20 @@ RUN pip install --upgrade pip setuptools wheel \
     && pip install -r /usr/src/requirements.txt \
     && rm -rf /root/.cache/pip
 
-RUN mkdir -p /tmp/static
-
 COPY ./entities/ /usr/src/entities/
 COPY ./workers/ /usr/src/workers/
-COPY ./tests/ /usr/src/tests/
+
+FROM base AS test
+
+COPY ./tests/worker/ /usr/src/tests/
+RUN pytest
+RUN touch /usr/src/test.complete
+
+FROM base AS final
+COPY --from=test /usr/src/test.complete .
+COPY ./worker.entrypoint.sh /usr/src/entrypoint.sh
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
+ENTRYPOINT [ "sh", "/usr/src/entrypoint.sh" ]

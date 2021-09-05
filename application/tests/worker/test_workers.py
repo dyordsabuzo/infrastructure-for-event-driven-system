@@ -8,12 +8,6 @@ import boto3
 
 
 class TestWorkers(TestCase):
-    def test_thumbnail(self):
-        url = 'http://personal.psu.edu/xqz5228/jpg.jpg'
-        filename = 'somefilename'
-        thumbnail.create(url, filename)
-        path = Path(f'/tmp/static/{filename}')
-        self.assertTrue(path.is_file())
 
     def test_s3_thumbnail(self):
         with mock_s3():

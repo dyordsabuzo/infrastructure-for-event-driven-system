@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 import requests
 from wonderwords import RandomWord
-from fastapi.staticfiles import StaticFiles
+
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 
@@ -18,8 +18,6 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-STATIC_DIR = os.environ.get("STATIC_DIR", "/tmp/static")
-
 
 class Thumbnail(BaseModel):
     url: str
@@ -27,7 +25,6 @@ class Thumbnail(BaseModel):
 
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
