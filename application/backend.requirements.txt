@@ -3,7 +3,7 @@ uvicorn
 pytest
 requests
 wonderwords
-aiofiles
+# aiofiles
 Pillow
 celery==v5.1.2
 jinja2

@@ -3,7 +3,6 @@ from pydantic import BaseModel
 from typing import Optional
 import requests
 from wonderwords import RandomWord
-
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 

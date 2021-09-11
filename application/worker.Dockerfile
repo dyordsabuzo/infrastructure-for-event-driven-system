@@ -29,7 +29,6 @@ COPY ./entities/ /usr/src/entities/
 COPY ./workers/ /usr/src/workers/
 
 FROM base AS test
-
 COPY ./tests/worker/ /usr/src/tests/
 RUN pytest
 RUN touch /usr/src/test.complete
