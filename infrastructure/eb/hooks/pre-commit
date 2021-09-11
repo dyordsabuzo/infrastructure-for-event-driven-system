@@ -1,0 +1,15 @@
+#!/bin/sh -e
+
+base_path=$PWD/infrastructure-for-event-driven-system/infrastructure/eb
+processed_paths=()
+
+for changed_file in 
+do
+  changed_path=
+  if [[ !  =~  ]]
+  then
+    cd $PWD && terraform fmt -recursive &&       terraform init -backend=false && terraform validate
+
+    processed_paths+=()
+  fi
+done

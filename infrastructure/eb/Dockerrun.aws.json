@@ -1,0 +1,1 @@
+{"AWSEBDockerrunVersion":2,"containerDefinitions":[{"essential":true,"image":"backend:latest","memory":128,"name":"backend"},{"essential":true,"image":"worker:latest","memory":128,"name":"worker"}]}
