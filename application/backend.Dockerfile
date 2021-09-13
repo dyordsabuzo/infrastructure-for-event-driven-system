@@ -41,4 +41,4 @@ COPY ./backend.entrypoint.sh /usr/src/entrypoint.sh
 # RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 # USER appuser
 
-ENTRYPOINT [ "sh", "/usr/src/entrypoint.sh" ]
+CMD [ "sh", "/usr/src/entrypoint.sh" ]

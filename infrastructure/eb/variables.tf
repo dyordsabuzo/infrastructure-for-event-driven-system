@@ -15,3 +15,18 @@ variable "worker_image" {
   type        = string
   default     = "worker:latest"
 }
+
+variable "repositories" {
+  type    = list(any)
+  default = ["backend", "worker"]
+}
+
+variable "image_tag" {
+  default = "latest"
+}
+
+variable "environment_variables_map" {
+  description = "Map of environment variables"
+  type        = map(any)
+  default     = {}
+}

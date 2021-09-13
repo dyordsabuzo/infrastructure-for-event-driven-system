@@ -43,3 +43,9 @@ variable "endpoint_name" {
   type        = string
   description = "Route 53 record name"
 }
+
+variable "image_tag" {
+  type        = string
+  description = "ECR image tag"
+  default     = "latest"
+}

@@ -1,0 +1,68 @@
+name: Application Deployment
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    env:
+      IMAGE_TAG: ${GITHUB_SHA::8}
+      AWS_REGION: ap-southeast-2
+    name: Build docker images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repository: [backend, worker]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Run Snyk scan on Code
+        uses: snyk/actions/python@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: $AWS_REGION
+
+      - name: Login to AWS ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build images
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          DOCKER_BUILDKIT: 1
+        working-directory: ./application
+        run: |
+          docker build -t $ECR_REGISTRY/${{ matrix.repository }}:${{ env.IMAGE_TAG }} .
+
+          docker tag $ECR_REGISTRY/${{ matrix.repository }}:${{ env.IMAGE_TAG }} \
+            $ECR_REGISTRY/${{ matrix.repository }}:latest
+
+          # docker push --all-tags $ECR_REGISTRY/${{ matrix.repository }}
+    
+      - name: Run Snyk docker scan
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ matrix.repository }}
+          args: --file=${{ matrix.repository }}.Dockerfile --severity-threshold=high
+
+      - name: Upload result to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v1
+        with:
+          sarif_file: snyk.sarif
+      
+      - name: Publish images
+        run: docker push --all-tags ${{ steps.login-ecr.outputs.registry }}/${{ matrix.repository }}

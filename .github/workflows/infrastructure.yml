@@ -1,0 +1,70 @@
+name: Infrastructure Deployment
+
+on:
+  workflow_run:
+    workflows:
+      - Application Deployment
+    types:
+      - completed
+
+jobs:
+  terraform:
+    env:
+      TF_WORKSPACE: main
+      IMAGE_TAG: ${GITHUB_SHA::8}
+    name: Terraform Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Terraform setup
+        uses: hashicorp/setup-terraform@v1
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_TOKEN }}
+          terraform_version: 1.0.0
+
+      - name: Terraform Format
+        working-directory: ./infrastructure
+        run: terraform fmt
+
+      - name: Terraform init
+        working-directory: ./infrastructure
+        run: terraform init
+
+      - name: Terraform validate
+        working-directory: ./infrastructure
+        run: terraform validate
+
+      - name: Terraform plan
+        working-directory: ./infrastructure
+        id: plan
+        run: |
+          terraform plan -var-file tfvars/$TF_WORKSPACE.tfvars \
+            -var image_tag=$IMAGE_TAG
+            -out $TF_WORKSPACE.tfplan -no-color
+        continue-on-error: true
+
+      - name: PR Update
+        uses: actions/github-script@v5
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            <details>
+              <summary>Show plan output</summary>
+              \`\`\`
+              ${{ steps.plan.outputs.stdout }}
+              \`\`\`
+            </details>
+
+            *Pusher: #${{ github.actor }}*
+
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+        
+      - name: Terraform apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: ./infrastructure
+        run: terraform apply -auto-approve
