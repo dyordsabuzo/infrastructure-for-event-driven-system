@@ -35,7 +35,7 @@ FROM base AS final
 COPY --from=test /usr/src/test.complete .
 COPY ./backend.entrypoint.sh /usr/src/entrypoint.sh
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-USER appuser
+# RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# USER appuser
 
 ENTRYPOINT [ "sh", "/usr/src/entrypoint.sh" ]

@@ -4,3 +4,4 @@
 .env
 **/.terraform/**
 *.tfplan
+Dockerrun.aws.*
