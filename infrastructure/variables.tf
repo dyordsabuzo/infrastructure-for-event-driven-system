@@ -33,3 +33,13 @@ variable "environment_variables_map" {
   description = "Map of environment variables"
   default     = {}
 }
+
+variable "hosted_zone_name" {
+  type        = string
+  description = "Route 53 hosted zone"
+}
+
+variable "endpoint_name" {
+  type        = string
+  description = "Route 53 record name"
+}

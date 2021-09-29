@@ -1,32 +1,15 @@
-## Create ECR repository
-resource "aws_ecr_repository" "repository" {
-  for_each = toset(var.repository_list)
-  name     = each.key
-  tags     = local.tags
-}
 
-## Build docker images and push to ECR
-resource "docker_registry_image" "image" {
-  for_each = toset(var.repository_list)
-  name     = "${aws_ecr_repository.repository[each.key].repository_url}:latest"
-
-  build {
-    context    = "../application"
-    dockerfile = "${each.key}.Dockerfile"
-  }
-}
 
 ## Setup proper credentials to push to ECR
 
 # Create docker run configuration file
 resource "local_file" "docker_run_config" {
-  depends_on = [docker_registry_image.image]
   content = jsonencode({
     AWSEBDockerrunVersion = 2
     containerDefinitions = [
       {
         name      = "backend"
-        image     = "${aws_ecr_repository.repository["backend"].repository_url}:latest"
+        image     = "${data.aws_ecr_repository.repository["backend"].repository_url}:latest"
         memory    = 128
         essential = true
         portMappings = [{
@@ -36,7 +19,7 @@ resource "local_file" "docker_run_config" {
       },
       {
         name      = "worker"
-        image     = "${aws_ecr_repository.repository["worker"].repository_url}:latest"
+        image     = "${data.aws_ecr_repository.repository["worker"].repository_url}:latest"
         memory    = 128
         essential = true
       }
@@ -165,14 +148,131 @@ resource "aws_elastic_beanstalk_environment" "eb_env" {
   }
 
   dynamic "setting" {
-    for_each = var.environment_variables_map
+    for_each = merge(var.environment_variables_map, {
+      THUMBNAIL_BASE_URL = "https://${aws_s3_bucket.thumbnail_bucket.bucket_regional_domain_name}/thumbnail"
+      S3_BUCKET_NAME     = aws_s3_bucket.thumbnail_bucket.bucket
+      QUEUE_NAME         = aws_sqs_queue.queue.name
+      BROKER_TYPE        = "sqs"
+      AWS_DEFAULT_REGION = var.region
+    })
     content {
       namespace = "aws:elasticbeanstalk:application:environment"
       name      = setting.key
       value     = setting.value
     }
   }
+
+  dynamic "setting" {
+    for_each = {
+      Protocol           = "HTTPS"
+      SSLCertificateArns = aws_acm_certificate.cert.arn
+      SSLPolicy          = "ELBSecurityPolicy-TLS-1-2-Ext-2018-06"
+    }
+    content {
+      namespace = "aws:elbv2:listener:443"
+      name      = setting.key
+      value     = setting.value
+    }
+  }
+
+  setting {
+    namespace = "aws:elbv2:listener:default"
+    name      = "ListenerEnabled"
+    value     = false
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:cloudwatch:logs"
+    name      = "StreamLogs"
+    value     = true
+  }
+
+  setting {
+    namespace = "aws:autoscaling:updatepolicy:rollingupdate"
+    name      = "MinInstancesInService"
+    value     = 1
+  }
 }
 
 # Setup output variable to show endpoint url to eb app
 # Refer to variable in output.tf
+
+resource "aws_route53_record" "endpoint" {
+  zone_id = data.aws_route53_zone.zone.zone_id
+  name    = var.endpoint_name
+  type    = "A"
+
+  alias {
+    name                   = aws_elastic_beanstalk_environment.eb_env.cname
+    zone_id                = data.aws_elastic_beanstalk_hosted_zone.current.id
+    evaluate_target_health = true
+  }
+
+}
+
+resource "aws_acm_certificate" "cert" {
+  domain_name               = var.hosted_zone_name
+  subject_alternative_names = ["*.${var.hosted_zone_name}"]
+  validation_method         = "DNS"
+  tags                      = local.tags
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_route53_record" "validation_record" {
+  for_each = {
+    for d in aws_acm_certificate.cert.domain_validation_options : d.domain_name => {
+      name   = d.resource_record_name
+      record = d.resource_record_value
+      type   = d.resource_record_type
+    }
+  }
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = data.aws_route53_zone.zone.zone_id
+}
+
+resource "aws_acm_certificate_validation" "validation" {
+  certificate_arn         = aws_acm_certificate.cert.arn
+  validation_record_fqdns = [for record in aws_route53_record.validation_record : record.fqdn]
+}
+
+
+resource "aws_s3_bucket" "thumbnail_bucket" {
+  bucket = "event-driven-thumbnail-bucket"
+  acl    = "public-read"
+  tags   = local.tags
+
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "AES256"
+      }
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "public_read" {
+  bucket = aws_s3_bucket.thumbnail_bucket.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = ["s3:GetObject"]
+        Resource  = ["${aws_s3_bucket.thumbnail_bucket.arn}/thumbnail/*"]
+      }
+    ]
+  })
+}
+
+resource "aws_sqs_queue" "queue" {
+  name = "event-driven-queue"
+}
