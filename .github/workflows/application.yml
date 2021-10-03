@@ -1,0 +1,66 @@
+name: Application Deployment
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  app-build:
+    environment:
+      name: main
+      url: ${{ steps.create_release.outputs.html_url }}
+    name: Build and publish docker images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repository: [backend, worker]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to AWS ECR
+        uses: aws-actions/amazon-ecr-login@v1
+        id: login-ecr
+
+      - name: Build docker image
+        working-directory: ./application
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          DOCKER_BUILDKIT: 1
+          IMAGE_TAG: ${GITHUB_SHA::8}
+        run: |
+          docker build -f ${{ matrix.repository }}.Dockerfile \
+            -t $ECR_REGISTRY/${{ matrix.repository }}:${{ env.IMAGE_TAG }} .
+
+          docker tag $ECR_REGISTRY/${{ matrix.repository }}:${{ env.IMAGE_TAG }} \
+            $ECR_REGISTRY/${{ matrix.repository }}:latest
+
+      - name: Security scan on docker image
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ matrix.repository }}
+          args: --file=./application/${{ matrix.repository }}.Dockerfile --severity-threshold=critical
+
+      - name: Publish scan results to Github Code Scanning
+        uses: github/codeql-action/upload-sarif@v1
+        with:
+          sarif_file: snyk.sarif
+
+      - name: Publish docker image
+        if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+        run: docker push --all-tags ${{ steps.login-ecr.outputs.registry }}/${{ matrix.repository }}
+
+
+
+

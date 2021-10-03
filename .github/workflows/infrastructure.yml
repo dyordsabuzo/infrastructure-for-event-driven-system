@@ -1,0 +1,78 @@
+name: Infrastructure Deployment
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  terraform:
+    name: Infrastructure Deploy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infrastructure
+    env:
+      TF_WORKSPACE: main
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Vulnerability scan
+        uses: snyk/actions/iac@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          file: infrastructure/main.tf
+          args: --severity-threshold=high
+
+      - name: Terraform setup
+        uses: hashicorp/setup-terraform@v1
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_TOKEN }}
+      
+      - name: Terraform format
+        run: terraform fmt
+        
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        id: plan
+        continue-on-error: true
+        run: |
+          cp tfvars/$TF_WORKSPACE.tfvars $TF_WORKSPACE.auto.tfvars
+          terraform plan -no-color
+      
+      - name: Attach terraform plan output
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const output = `
+            <details><summary>Terraform Plan Output</summary>
+            \`\`\`
+            ${{ steps.plan.outputs.stdout }}
+            \`\`\`
+            </details>
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+      - name: Check terraform plan status
+        if: ${{ steps.plan.outcome == 'failure' }}
+        run: exit 1
+      
+      - name: Terraform Apply
+        if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+        run: terraform apply -auto-approve
+
+

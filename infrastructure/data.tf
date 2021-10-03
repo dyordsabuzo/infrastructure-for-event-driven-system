@@ -40,3 +40,9 @@ data "aws_ecr_repository" "repository" {
 data "aws_route53_zone" "zone" {
   name = var.hosted_zone_name
 }
+
+data "aws_ecr_image" "image" {
+  for_each        = toset(var.repository_list)
+  repository_name = each.key
+  image_tag       = "latest"
+}

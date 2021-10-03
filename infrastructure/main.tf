@@ -9,7 +9,7 @@ resource "local_file" "docker_run_config" {
     containerDefinitions = [
       {
         name      = "backend"
-        image     = "${data.aws_ecr_repository.repository["backend"].repository_url}:latest"
+        image     = "${data.aws_ecr_repository.repository["backend"].repository_url}:${local.backend_image_tag}"
         memory    = 128
         essential = true
         portMappings = [{
@@ -19,7 +19,7 @@ resource "local_file" "docker_run_config" {
       },
       {
         name      = "worker"
-        image     = "${data.aws_ecr_repository.repository["worker"].repository_url}:latest"
+        image     = "${data.aws_ecr_repository.repository["worker"].repository_url}:${local.worker_image_tag}"
         memory    = 128
         essential = true
       }
