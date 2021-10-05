@@ -3,29 +3,47 @@
 ## Setup proper credentials to push to ECR
 
 # Create docker run configuration file
+# resource "local_file" "docker_run_config" {
+#   content = jsonencode({
+#     AWSEBDockerrunVersion = 2
+#     containerDefinitions = [
+#       {
+#         name      = "backend"
+#         image     = "${data.aws_ecr_repository.repository["backend"].repository_url}:${local.backend_image_tag}"
+#         memory    = 128
+#         essential = true
+#         portMappings = [{
+#           hostPort      = 80
+#           containerPort = var.backend_container_port
+#         }]
+#       },
+#       {
+#         name      = "worker"
+#         image     = "${data.aws_ecr_repository.repository["worker"].repository_url}:${local.worker_image_tag}"
+#         memory    = 128
+#         essential = true
+#       }
+#     ]
+#   })
+#   filename = "${path.module}/Dockerrun.aws.json"
+# }
+
 resource "local_file" "docker_run_config" {
-  content = jsonencode({
-    AWSEBDockerrunVersion = 2
-    containerDefinitions = [
-      {
-        name      = "backend"
-        image     = "${data.aws_ecr_repository.repository["backend"].repository_url}:${local.backend_image_tag}"
-        memory    = 128
-        essential = true
-        portMappings = [{
-          hostPort      = 80
-          containerPort = var.backend_container_port
-        }]
-      },
-      {
-        name      = "worker"
-        image     = "${data.aws_ecr_repository.repository["worker"].repository_url}:${local.worker_image_tag}"
-        memory    = 128
-        essential = true
+  content = yamlencode({
+    version = "2.4"
+    services = {
+      backend = {
+        image    = "${data.aws_ecr_repository.repository["backend"].repository_url}:${local.backend_image_tag}"
+        ports    = ["80:${var.backend_container_port}"]
+        env_file = [".env"]
       }
-    ]
+      worker = {
+        image    = "${data.aws_ecr_repository.repository["worker"].repository_url}:${local.worker_image_tag}"
+        env_file = [".env"]
+      }
+    }
   })
-  filename = "${path.module}/Dockerrun.aws.json"
+  filename = "${path.module}/docker-compose.yml"
 }
 
 # Compress the docker run config file
@@ -98,12 +116,13 @@ resource "aws_elastic_beanstalk_application_version" "eb_version" {
 
 # Create eb environment
 resource "aws_elastic_beanstalk_environment" "eb_env" {
-  name          = "event-driven-env"
-  application   = aws_elastic_beanstalk_application.eb_app.name
-  platform_arn  = "arn:aws:elasticbeanstalk:${var.region}::platform/Multi-container Docker running on 64bit Amazon Linux/2.26.4"
-  version_label = aws_elastic_beanstalk_application_version.eb_version.name
-  cname_prefix  = "event-driven-app"
-  tags          = local.tags
+  name        = "event-driven-env"
+  application = aws_elastic_beanstalk_application.eb_app.name
+  # platform_arn  = "arn:aws:elasticbeanstalk:${var.region}::platform/Multi-container Docker running on 64bit Amazon Linux/2.26.4"
+  solution_stack_name = "64bit Amazon Linux 2 v3.4.6 running Docker"
+  version_label       = aws_elastic_beanstalk_application_version.eb_version.name
+  cname_prefix        = "event-driven-app"
+  tags                = local.tags
 
   setting {
     namespace = "aws:autoscaling:launchconfiguration"
