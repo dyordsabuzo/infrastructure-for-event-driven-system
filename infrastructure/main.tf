@@ -236,7 +236,6 @@ resource "aws_acm_certificate_validation" "validation" {
   validation_record_fqdns = [for record in aws_route53_record.validation_record : record.fqdn]
 }
 
-
 resource "aws_s3_bucket" "thumbnail_bucket" {
   bucket = "event-driven-thumbnail-bucket"
   acl    = "public-read"
