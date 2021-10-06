@@ -91,12 +91,12 @@ resource "aws_elastic_beanstalk_application_version" "eb_version" {
 
 # Create eb environment
 resource "aws_elastic_beanstalk_environment" "eb_env" {
-  name          = "event-driven-env"
-  application   = aws_elastic_beanstalk_application.eb_app.name
-  platform_arn  = "arn:aws:elasticbeanstalk:${var.region}::platform/Multi-container Docker running on 64bit Amazon Linux/2.26.4"
-  version_label = aws_elastic_beanstalk_application_version.eb_version.name
-  cname_prefix  = "event-driven-app"
-  tags          = local.tags
+  name                = "event-driven-env"
+  application         = aws_elastic_beanstalk_application.eb_app.name
+  solution_stack_name = "64bit Amazon Linux 2 v3.4.6 running Docker"
+  version_label       = aws_elastic_beanstalk_application_version.eb_version.name
+  cname_prefix        = "event-driven-app"
+  tags                = local.tags
 
   setting {
     namespace = "aws:autoscaling:launchconfiguration"
