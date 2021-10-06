@@ -5,7 +5,7 @@
 # Create docker run configuration file
 resource "local_file" "docker_run_config" {
   content = yamlencode({
-    version = "3.8"
+    version = "2.4"
     services = {
       backend = {
         image    = "${data.aws_ecr_repository.repository["backend"].repository_url}:${local.backend_image_tag}"
@@ -108,12 +108,6 @@ resource "aws_elastic_beanstalk_environment" "eb_env" {
     namespace = "aws:autoscaling:launchconfiguration"
     name      = "InstanceType"
     value     = var.instance_type
-  }
-
-  setting {
-    namespace = "aws:autoscaling:launchconfiguration"
-    name      = "DisableIMDSv1"
-    value     = true
   }
 
   setting {
