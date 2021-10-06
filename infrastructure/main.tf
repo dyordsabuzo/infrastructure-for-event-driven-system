@@ -5,7 +5,7 @@
 # Create docker run configuration file
 resource "local_file" "docker_run_config" {
   content = yamlencode({
-    version = "2.4"
+    version = "3.8"
     services = {
       backend = {
         image    = "${data.aws_ecr_repository.repository["backend"].repository_url}:${local.backend_image_tag}"
@@ -235,7 +235,6 @@ resource "aws_acm_certificate_validation" "validation" {
   certificate_arn         = aws_acm_certificate.cert.arn
   validation_record_fqdns = [for record in aws_route53_record.validation_record : record.fqdn]
 }
-
 
 resource "aws_s3_bucket" "thumbnail_bucket" {
   bucket = "event-driven-thumbnail-bucket"
