@@ -45,10 +45,10 @@ class TestEndpoints(TestCase):
         self.assertEqual(response.status_code, 500)
 
     @mock.patch.dict(os.environ, {
-        "THUMBNAIL_BASE_URL": "https://www.hdnicewallpapers.com/Walls/Big/Rainbow"
+        "THUMBNAIL_BASE_URL": "https://jpeg.org/images"
     })
     def test_load_thumbnail(self):
-        filename = "Rainbow_on_Mountain_HD_Image.jpg"
+        filename = "jpeg-home.jpg"
         response = client.get(f'/thumbnail/{filename}', json={})
         self.assertEqual(response.status_code, 200)
         self.assertTrue(

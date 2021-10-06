@@ -4,28 +4,21 @@
 
 # Create docker run configuration file
 resource "local_file" "docker_run_config" {
-  content = jsonencode({
-    AWSEBDockerrunVersion = 2
-    containerDefinitions = [
-      {
-        name      = "backend"
-        image     = "${data.aws_ecr_repository.repository["backend"].repository_url}:${local.backend_image_tag}"
-        memory    = 128
-        essential = true
-        portMappings = [{
-          hostPort      = 80
-          containerPort = var.backend_container_port
-        }]
-      },
-      {
-        name      = "worker"
-        image     = "${data.aws_ecr_repository.repository["worker"].repository_url}:${local.worker_image_tag}"
-        memory    = 128
-        essential = true
+  content = yamlencode({
+    version = "3.8"
+    services = {
+      backend = {
+        image    = "${data.aws_ecr_repository.repository["backend"].repository_url}:${local.backend_image_tag}"
+        ports    = ["80:${var.backend_container_port}"]
+        env_file = [".env"]
       }
-    ]
+      worker = {
+        image    = "${data.aws_ecr_repository.repository["worker"].repository_url}:${local.worker_image_tag}"
+        env_file = [".env"]
+      }
+    }
   })
-  filename = "${path.module}/Dockerrun.aws.json"
+  filename = "${path.module}/docker-compose.yml"
 }
 
 # Compress the docker run config file
