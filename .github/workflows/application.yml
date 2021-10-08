@@ -15,10 +15,41 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        repository: [backend, worker]
+        # repository: [backend, worker]
+        repository: [backend]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
+      # - name: Run Snyk to check for vulnerabilities
+      #   uses: snyk/actions/python@master
+      #   continue-on-error: true
+      #   env:
+      #     SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      #   with:
+      #     args: --sarif-file-output=snyk.sarif --file=application/${{ matrix.repository }}.requirements.txt --package-manager=pip
+
+
+      - name: Python package scan
+        id: package-scan
+        working-directory: ./application
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          DOCKER_BUILDKIT: 1
+        run: |
+          docker build -f ${{ matrix.repository }}.Dockerfile \
+            --target scan-result --output type=local,dest=. \
+            --build-arg SNYK_TOKEN=${SNYK_TOKEN} .
+
+      - name: Upload result to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v1
+        with:
+          sarif_file: application/snyk.sarif
+      
+      - name: Check if vulnerabilities are found
+        if: hashFiles('application/snyk.sarif') != ''
+        run: exit 1
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -46,16 +77,17 @@ jobs:
 
       - name: Security scan on docker image
         uses: snyk/actions/docker@master
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           image: ${{ steps.login-ecr.outputs.registry }}/${{ matrix.repository }}
-          args: --file=./application/${{ matrix.repository }}.Dockerfile --severity-threshold=critical
+          args: --file=./application/${{ matrix.repository }}.Dockerfile --severity-threshold=critical --sarif-file-output=snyk.docker.sarif
 
       - name: Publish scan results to Github Code Scanning
         uses: github/codeql-action/upload-sarif@v1
         with:
-          sarif_file: snyk.sarif
+          sarif_file: snyk.docker.sarif
 
       - name: Publish docker image
         if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}

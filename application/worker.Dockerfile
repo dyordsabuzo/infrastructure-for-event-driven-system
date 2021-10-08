@@ -7,7 +7,7 @@ ENV PYTHONBUFFERED 1
 ENV CRYPTOGRAPHY_DONT_BUILD_RUST 1
 ENV PYCURL_VERSION=7_44_1
 
-COPY ./workers.requirements.txt requirements.txt
+COPY ./worker.requirements.txt requirements.txt
 RUN set -eux \
     && apk add --no-cache --virtual .build-deps build-base \
     libressl-dev libffi-dev gcc musl-dev python3-dev \

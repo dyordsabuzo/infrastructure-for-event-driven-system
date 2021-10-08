@@ -4,7 +4,7 @@ pytest
 requests
 wonderwords
 aiofiles
-Pillow
+Pillow==6.2.2
 celery==v5.1.2
 jinja2
 boto3
