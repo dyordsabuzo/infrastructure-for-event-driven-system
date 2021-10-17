@@ -25,6 +25,19 @@ COPY ./templates/ /usr/src/templates/
 COPY ./workers/ /usr/src/workers/
 COPY ./entities/ /usr/src/entities/
 
+FROM snyk/snyk:python AS scan
+ARG SNYK_TOKEN
+ENV SNYK_TOKEN=${SNYK_TOKEN}
+
+COPY backend.requirements.txt requirements.txt
+COPY run-snyk-test.sh .
+
+RUN pip install -r requirements.txt
+RUN ./run-snyk-test.sh
+
+FROM scratch AS scan-result
+COPY --from=scan /snyk/output .
+
 FROM base AS test
 
 COPY ./tests/backend/ /usr/src/tests/
