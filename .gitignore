@@ -5,3 +5,4 @@
 **/.terraform/**
 *.tfplan
 Dockerrun.aws.*
+*.sarif

@@ -28,6 +28,19 @@ RUN pip install --upgrade pip setuptools wheel \
 COPY ./entities/ /usr/src/entities/
 COPY ./workers/ /usr/src/workers/
 
+FROM snyk/snyk:python AS scan
+ARG SNYK_TOKEN
+ENV SNYK_TOKEN=${SNYK_TOKEN}
+
+COPY workers.requirements.txt requirements.txt
+COPY run-snyk-test.sh .
+
+RUN pip install -r requirements.txt
+RUN ./run-snyk-test.sh
+
+FROM scratch AS scan-result
+COPY --from=scan /snyk/output .
+
 FROM base AS test
 
 COPY ./tests/worker/ /usr/src/tests/
