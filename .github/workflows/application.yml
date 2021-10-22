@@ -15,7 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        repository: [backend, worker]
+        # repository: [backend, worker]
+        repository: [worker]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -38,8 +39,10 @@ jobs:
           sarif_file: application/${{ matrix.repository }}.package
       
       - name: Check snyk scan status
-        if: hashFiles('application/${{ matrix.repository }}.package/snyk.sarif') != ''
-        run: exit 1
+        run: |
+          result=$( cat application/${{ matrix.repository }}.package/snyk.sarif | \
+            jq -r '.runs[].results | length' )
+          exit $result
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1

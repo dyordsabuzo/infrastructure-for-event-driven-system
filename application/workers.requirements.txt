@@ -1,6 +1,6 @@
 pytest
-Pillow
 requests
+Pillow
 celery==v5.1.2
 boto3
 moto
