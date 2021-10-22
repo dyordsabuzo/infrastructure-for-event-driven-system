@@ -20,6 +20,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Python package scan
+        working-directory: ./application
+        id: package-scan
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          DOCKER_BUILDKIT: 1
+        run: |
+          docker build -f ${{ matrix.repository }}.Dockerfile \
+            --target scan-result --output type=local,dest=${{ matrix.repository }}.package \
+            --build-arg SNYK_TOKEN=${SNYK_TOKEN} .
+      
+      - name: Upload result to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v1
+        with:
+          sarif_file: application/${{ matrix.repository }}.package
+      
+      - name: Check snyk scan status
+        if: hashFiles('application/${{ matrix.repository }}.package/snyk.sarif') != ''
+        run: exit 1
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:

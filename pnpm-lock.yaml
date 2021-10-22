@@ -1,0 +1,15 @@
+lockfileVersion: 5.3
+
+specifiers:
+  snyk: ^1.737.0
+
+dependencies:
+  snyk: 1.737.0
+
+packages:
+
+  /snyk/1.737.0:
+    resolution: {integrity: sha512-74RuQLRB2lIDoS3dFY/XXRsPJvL1qr5t7LisJ10q5O2wLi4ISEyNU39XPICVOj+kg1eT30CjKUecMzF+9P2xfQ==}
+    engines: {node: '>=10'}
+    hasBin: true
+    dev: false
