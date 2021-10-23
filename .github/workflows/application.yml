@@ -20,6 +20,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Python module dependency scan
+        working-directory: application
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          DOCKER_BUILDKIT: 1
+        run: |
+          docker build -f ${{ matrix.repository }}.Dockerfile \
+            --target scan-result \
+            --output type=local,dest=${{ matrix.repository }} \
+            --build-arg SNYK_TOKEN=${SNYK_TOKEN} .
+      
+      - name: Upload sarif file to Github Code Scanning
+        uses: github/codeql-action/upload-sarif@v1
+        with:
+          sarif_file: application/${{ matrix.repository }}
+
+      - name: Check snyk scan status
+        run: |
+          result=$( cat application/${{ matrix.repository }}/snyk.sarif | \
+            jq -r '.runs[].results | length'
+          )
+          exit $result
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -52,10 +75,10 @@ jobs:
           image: ${{ steps.login-ecr.outputs.registry }}/${{ matrix.repository }}
           args: --file=./application/${{ matrix.repository }}.Dockerfile --severity-threshold=critical
 
-      - name: Publish scan results to Github Code Scanning
-        uses: github/codeql-action/upload-sarif@v1
-        with:
-          sarif_file: snyk.sarif
+      # - name: Publish scan results to Github Code Scanning
+      #   uses: github/codeql-action/upload-sarif@v1
+      #   with:
+      #     sarif_file: snyk.sarif
 
       - name: Publish docker image
         if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
