@@ -42,10 +42,11 @@ resource "aws_s3_bucket" "docker_run_bucket" {
 
 # Create s3 object from the compressed docker run config
 resource "aws_s3_bucket_object" "docker_run_object" {
-  key    = "${local.docker_run_config_sha}.zip"
-  bucket = aws_s3_bucket.docker_run_bucket.id
-  source = data.archive_file.docker_run.output_path
-  tags   = local.tags
+  key                    = "${local.docker_run_config_sha}.zip"
+  bucket                 = aws_s3_bucket.docker_run_bucket.id
+  source                 = data.archive_file.docker_run.output_path
+  tags                   = local.tags
+  server_side_encryption = "AES256"
 }
 
 # Create instance profile
@@ -238,7 +239,7 @@ resource "aws_acm_certificate_validation" "validation" {
 
 resource "aws_s3_bucket" "thumbnail_bucket" {
   bucket = "event-driven-thumbnail-bucket"
-  acl    = "public-read"
+  acl    = "private"
   tags   = local.tags
 
   server_side_encryption_configuration {
@@ -266,5 +267,7 @@ resource "aws_s3_bucket_policy" "public_read" {
 }
 
 resource "aws_sqs_queue" "queue" {
-  name = "event-driven-queue"
+  name                              = "event-driven-queue"
+  kms_master_key_id                 = "alias/aws/sqs"
+  kms_data_key_reuse_period_seconds = 300
 }
