@@ -24,9 +24,17 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          file: infrastructure/main.tf
-          args: --severity-threshold=high
+          args: --severity-threshold=medium
+            --sarif-file-output=terraform.snyk.scan
+          sarif: false
 
+      - name: Upload sarif file to Github Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v1
+        with:
+          sarif_file: terraform.snyk.scan
+
+          
       - name: Terraform setup
         uses: hashicorp/setup-terraform@v1
         with:
