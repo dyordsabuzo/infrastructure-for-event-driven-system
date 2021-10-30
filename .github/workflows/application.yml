@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        repository: [backend]
+        repository: [backend, worker]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
