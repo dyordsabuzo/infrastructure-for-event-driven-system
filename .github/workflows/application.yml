@@ -72,7 +72,7 @@ jobs:
           image: ${{ steps.login-ecr.outputs.registry }}/${{ matrix.repository }}
           args: --file=./application/${{ matrix.repository }}.Dockerfile 
             --severity-threshold=low
-            --sarif-file-output=./application/${{ matrix.repository }}/docker.snyk.scan
+            --sarif-file-output=./application/${{ matrix.repository }}/docker.snyk.sarif
           sarif: false
 
       - name: Upload sarif file to Github Code Scanning
