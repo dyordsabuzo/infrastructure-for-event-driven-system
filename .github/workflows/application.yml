@@ -67,18 +67,34 @@ jobs:
           docker tag $ECR_REGISTRY/${{ matrix.repository }}:${{ env.IMAGE_TAG }} \
             $ECR_REGISTRY/${{ matrix.repository }}:latest
 
-      - name: Security scan on docker image
-        uses: snyk/actions/docker@master
+      # - name: Security scan on docker image
+      #   uses: snyk/actions/docker@master
+      #   env:
+      #     SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      #   with:
+      #     image: ${{ steps.login-ecr.outputs.registry }}/${{ matrix.repository }}
+      #     args: --file=./application/${{ matrix.repository }}.Dockerfile --severity-threshold=critical
+
+
+      - name: Security scan on docker image (wrapper script)
+        working-directory: application
+        continue-on-error: true
+        id: docker-image-scan
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          image: ${{ steps.login-ecr.outputs.registry }}/${{ matrix.repository }}
-          args: --file=./application/${{ matrix.repository }}.Dockerfile --severity-threshold=critical
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${GITHUB_SHA::8}
+        run: ./snyk-docker-image-scan.sh ${{ matrix.repository }}
 
-      # - name: Publish scan results to Github Code Scanning
-      #   uses: github/codeql-action/upload-sarif@v1
-      #   with:
-      #     sarif_file: snyk.sarif
+
+      - name: Publish scan results to Github Code Scanning
+        uses: github/codeql-action/upload-sarif@v1
+        with:
+          sarif_file: application/${{ matrix.repository }}.scan.sarif
+
+      - name: Check docker image scan status
+        if: ${{ steps.docker-image-scan.outcome == 'failure' }}
+        run: exit 1
 
       - name: Publish docker image
         if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
