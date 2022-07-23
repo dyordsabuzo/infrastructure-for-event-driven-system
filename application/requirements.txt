@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pytest
+requests
+wonderwords
+aiofiles
+Pillow
+celery==v5.1.2
+jinja2
+boto3
