@@ -1,6 +1,26 @@
+resource "local_file" "cw_init" {
+  filename        = "${path.module}/ebsource/.platform/hooks/prebuild/cw-init.sh"
+  file_permission = "0755"
+  content         = <<EOM
+#!/bin/bash
+set -ex
+sudo yum install -y amazon-cloudwatch-agent
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json
+EOM
 
+}
 
 ## Setup proper credentials to push to ECR
+## Build docker images and push to ECR
+resource "docker_registry_image" "image" {
+  for_each = toset(var.repository_list)
+  name     = "${aws_ecr_repository.repository[each.key].repository_url}:${local.backend_image_tag}"
+
+  build {
+    context    = "../application"
+    dockerfile = "${each.key}.Dockerfile"
+  }
+}
 
 # Create docker run configuration file
 resource "local_file" "docker_run_config" {
@@ -8,17 +28,17 @@ resource "local_file" "docker_run_config" {
     version = "3.8"
     services = {
       backend = {
-        image    = "${data.aws_ecr_repository.repository["backend"].repository_url}:${local.backend_image_tag}"
+        image    = "${aws_ecr_repository.repository["backend"].repository_url}:${local.backend_image_tag}"
         ports    = ["80:${var.backend_container_port}"]
         env_file = [".env"]
       }
       worker = {
-        image    = "${data.aws_ecr_repository.repository["worker"].repository_url}:${local.worker_image_tag}"
+        image    = "${aws_ecr_repository.repository["worker"].repository_url}:${local.worker_image_tag}"
         env_file = [".env"]
       }
     }
   })
-  filename = "${path.module}/docker-compose.yml"
+  filename = "${path.module}/ebsource/docker-compose.yml"
 }
 
 # Compress the docker run config file
@@ -26,7 +46,7 @@ resource "local_file" "docker_run_config" {
 
 # Create s3 bucket to store my docker run config
 resource "aws_s3_bucket" "docker_run_bucket" {
-  bucket = "docker-run-bucket"
+  bucket = "docker-run-bucket-${terraform.workspace}"
   acl    = "private"
 
   server_side_encryption_configuration {
@@ -38,6 +58,9 @@ resource "aws_s3_bucket" "docker_run_bucket" {
   }
 
   tags = local.tags
+  depends_on = [
+    data.archive_file.docker_run
+  ]
 }
 
 # Create s3 object from the compressed docker run config
@@ -63,7 +86,8 @@ resource "aws_iam_role" "ec2_role" {
     "arn:aws:iam::aws:policy/AWSElasticBeanstalkWebTier",
     "arn:aws:iam::aws:policy/AWSElasticBeanstalkMulticontainerDocker",
     "arn:aws:iam::aws:policy/AWSElasticBeanstalkWorkerTier",
-    "arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilderECRContainerBuilds"
+    "arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilderECRContainerBuilds",
+    "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
   ]
 
   inline_policy {
@@ -94,7 +118,7 @@ resource "aws_elastic_beanstalk_application_version" "eb_version" {
 resource "aws_elastic_beanstalk_environment" "eb_env" {
   name                = "event-driven-env"
   application         = aws_elastic_beanstalk_application.eb_app.name
-  solution_stack_name = "64bit Amazon Linux 2 v3.4.6 running Docker"
+  solution_stack_name = "64bit Amazon Linux 2 v3.4.17 running Docker"
   version_label       = aws_elastic_beanstalk_application_version.eb_version.name
   cname_prefix        = "event-driven-app"
   tags                = local.tags
