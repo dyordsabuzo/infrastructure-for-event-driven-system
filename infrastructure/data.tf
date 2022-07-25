@@ -2,10 +2,16 @@ data "aws_caller_identity" "current" {}
 
 data "aws_elastic_beanstalk_hosted_zone" "current" {}
 
+data "aws_elastic_beanstalk_hosted_zone" "current" {}
+
 data "archive_file" "docker_run" {
   type        = "zip"
-  source_file = local_file.docker_run_config.filename
+  source_dir  = "${path.module}/ebsource"
   output_path = "${path.module}/Dockerrun.aws.zip"
+
+  depends_on = [
+    local_file.docker_run_config
+  ]
 }
 
 data "aws_iam_policy_document" "assume_policy" {
@@ -32,17 +38,6 @@ data "aws_iam_policy_document" "permissions" {
   }
 }
 
-data "aws_ecr_repository" "repository" {
-  for_each = toset(var.repository_list)
-  name     = each.key
-}
-
 data "aws_route53_zone" "zone" {
   name = var.hosted_zone_name
-}
-
-data "aws_ecr_image" "image" {
-  for_each        = toset(var.repository_list)
-  repository_name = each.key
-  image_tag       = "latest"
 }

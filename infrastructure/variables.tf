@@ -43,3 +43,33 @@ variable "endpoint_name" {
   type        = string
   description = "Route 53 record name"
 }
+
+variable "vpc_id" {
+  type        = string
+  description = "VPC id"
+  default     = null
+}
+
+variable "private_subnets" {
+  type        = list(string)
+  description = "List of private subnets"
+  default     = []
+}
+
+variable "public_subnets" {
+  type        = list(string)
+  description = "List of public subnets"
+  default     = []
+}
+
+variable "instance_security_groups" {
+  type        = list(string)
+  description = "List of instance security groups"
+  default     = []
+}
+
+variable "lb_security_groups" {
+  type        = list(string)
+  description = "List of load balancer security groups"
+  default     = []
+}
