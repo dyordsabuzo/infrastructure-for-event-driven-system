@@ -2,10 +2,16 @@ data "aws_caller_identity" "current" {}
 
 data "aws_ecr_authorization_token" "token" {}
 
+data "aws_elastic_beanstalk_hosted_zone" "current" {}
+
 data "archive_file" "docker_run" {
   type        = "zip"
-  source_file = local_file.docker_run_config.filename
+  source_dir  = "${path.module}/ebsource"
   output_path = "${path.module}/Dockerrun.aws.zip"
+
+  depends_on = [
+    local_file.docker_run_config
+  ]
 }
 
 data "aws_iam_policy_document" "assume_policy" {
@@ -30,4 +36,8 @@ data "aws_iam_policy_document" "permissions" {
     ]
     resources = ["*"]
   }
+}
+
+data "aws_route53_zone" "zone" {
+  name = var.hosted_zone_name
 }

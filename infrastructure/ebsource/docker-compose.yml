@@ -1,0 +1,12 @@
+"services":
+  "backend":
+    "env_file":
+    - ".env"
+    "image": "400903410499.dkr.ecr.ap-southeast-2.amazonaws.com/backend:latest"
+    "ports":
+    - "80:8000"
+  "worker":
+    "env_file":
+    - ".env"
+    "image": "400903410499.dkr.ecr.ap-southeast-2.amazonaws.com/worker:latest"
+"version": "3.8"
