@@ -8,17 +8,17 @@ resource "local_file" "docker_run_config" {
     version = "3.8"
     services = {
       backend = {
-        image    = "${data.aws_ecr_repository.repository["backend"].repository_url}:${local.backend_image_tag}"
+        image    = "${aws_ecr_repository.repository["backend"].repository_url}:latest"
         ports    = ["80:${var.backend_container_port}"]
         env_file = [".env"]
       }
       worker = {
-        image    = "${data.aws_ecr_repository.repository["worker"].repository_url}:${local.worker_image_tag}"
+        image    = "${aws_ecr_repository.repository["worker"].repository_url}:latest"
         env_file = [".env"]
       }
     }
   })
-  filename = "${path.module}/docker-compose.yml"
+  filename = "${path.module}/ebsource/docker-compose.yml"
 }
 
 # Compress the docker run config file
@@ -26,7 +26,7 @@ resource "local_file" "docker_run_config" {
 
 # Create s3 bucket to store my docker run config
 resource "aws_s3_bucket" "docker_run_bucket" {
-  bucket = "docker-run-bucket"
+  bucket = "docker-run-bucket-${terraform.workspace}"
   acl    = "private"
 
   server_side_encryption_configuration {
@@ -45,8 +45,8 @@ resource "aws_s3_bucket_object" "docker_run_object" {
   key                    = "${local.docker_run_config_sha}.zip"
   bucket                 = aws_s3_bucket.docker_run_bucket.id
   source                 = data.archive_file.docker_run.output_path
-  tags                   = local.tags
   server_side_encryption = "AES256"
+  tags                   = local.tags
 }
 
 # Create instance profile
@@ -63,7 +63,9 @@ resource "aws_iam_role" "ec2_role" {
     "arn:aws:iam::aws:policy/AWSElasticBeanstalkWebTier",
     "arn:aws:iam::aws:policy/AWSElasticBeanstalkMulticontainerDocker",
     "arn:aws:iam::aws:policy/AWSElasticBeanstalkWorkerTier",
-    "arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilderECRContainerBuilds"
+    "arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilderECRContainerBuilds",
+    "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
+    "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   ]
 
   inline_policy {
@@ -94,10 +96,46 @@ resource "aws_elastic_beanstalk_application_version" "eb_version" {
 resource "aws_elastic_beanstalk_environment" "eb_env" {
   name                = "event-driven-env"
   application         = aws_elastic_beanstalk_application.eb_app.name
-  solution_stack_name = "64bit Amazon Linux 2 v3.4.6 running Docker"
+  solution_stack_name = "64bit Amazon Linux 2 v3.4.17 running Docker"
   version_label       = aws_elastic_beanstalk_application_version.eb_version.name
   cname_prefix        = "event-driven-app"
   tags                = local.tags
+
+  dynamic "setting" {
+    for_each = var.vpc_id != null ? [1] : []
+    content {
+      namespace = "aws:ec2:vpc"
+      name      = "VPCId"
+      value     = var.vpc_id
+    }
+  }
+
+  dynamic "setting" {
+    for_each = length(var.private_subnets) > 0 ? [1] : []
+    content {
+      namespace = "aws:ec2:vpc"
+      name      = "Subnets"
+      value     = join(",", var.private_subnets)
+    }
+  }
+
+  dynamic "setting" {
+    for_each = length(var.public_subnets) > 0 ? [1] : []
+    content {
+      namespace = "aws:ec2:vpc"
+      name      = "ELBSubnets"
+      value     = join(",", var.public_subnets)
+    }
+  }
+
+  dynamic "setting" {
+    for_each = length(var.instance_security_groups) > 0 ? [1] : []
+    content {
+      namespace = "aws:autoscaling:launchconfiguration"
+      name      = "SecurityGroups"
+      value     = join(",", var.instance_security_groups)
+    }
+  }
 
   setting {
     namespace = "aws:autoscaling:launchconfiguration"
@@ -175,6 +213,15 @@ resource "aws_elastic_beanstalk_environment" "eb_env" {
     value     = false
   }
 
+  dynamic "setting" {
+    for_each = length(var.lb_security_groups) > 0 ? [1] : []
+    content {
+      namespace = "aws:elbv2:loadbalancer"
+      name      = "SecurityGroups"
+      value     = join(",", var.lb_security_groups)
+    }
+  }
+
   setting {
     namespace = "aws:elasticbeanstalk:cloudwatch:logs"
     name      = "StreamLogs"
@@ -190,7 +237,6 @@ resource "aws_elastic_beanstalk_environment" "eb_env" {
 
 # Setup output variable to show endpoint url to eb app
 # Refer to variable in output.tf
-
 resource "aws_route53_record" "endpoint" {
   zone_id = data.aws_route53_zone.zone.zone_id
   name    = var.endpoint_name
