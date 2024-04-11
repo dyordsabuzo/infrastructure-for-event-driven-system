@@ -6,3 +6,4 @@
 *.tfplan
 Dockerrun.aws.*
 *.sarif
+.idea
