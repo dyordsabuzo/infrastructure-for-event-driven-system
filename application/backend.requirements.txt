@@ -5,7 +5,7 @@ requests
 wonderwords
 aiofiles
 Pillow
-celery==v5.1.2
+celery
 jinja2
 boto3
 moto
